@@ -7,11 +7,11 @@
     tapButtonEl: document.querySelector('.tap-button'),
     tapSurface: document.getElementById('tapSurface'),
     countValue: document.getElementById('countValue'),
-    countInput: document.getElementById('countInput'),
     targetLabel: document.getElementById('targetLabel'),
     ringProgress: document.getElementById('ringProgress'),
     beadsGroup: document.getElementById('beads'),
     nameInput: document.getElementById('nameInput'),
+    startInput: document.getElementById('startInput'),
     targetInput: document.getElementById('targetInput'),
     resetBtn: document.getElementById('resetBtn'),
     muteBtn: document.getElementById('muteBtn'),
@@ -23,6 +23,8 @@
     resetConfirm: document.getElementById('resetConfirm'),
     resetCancelBtn: document.getElementById('resetCancelBtn'),
     resetConfirmBtn: document.getElementById('resetConfirmBtn'),
+    todayStat: document.getElementById('todayStat'),
+    yesterdayStat: document.getElementById('yesterdayStat'),
   };
 
   let state = loadState();
@@ -48,25 +50,52 @@
     document.removeEventListener('pointerdown', unlockAudio);
   }, { once: true });
 
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
+        const daily = parsed.daily && typeof parsed.daily === 'object'
+          ? {
+              date: typeof parsed.daily.date === 'string' ? parsed.daily.date : todayKey(),
+              today: Number.isFinite(parsed.daily.today) ? parsed.daily.today : 0,
+              yesterday: Number.isFinite(parsed.daily.yesterday) ? parsed.daily.yesterday : 0,
+            }
+          : { date: todayKey(), today: 0, yesterday: 0 };
         return {
           name: typeof parsed.name === 'string' ? parsed.name : '',
           count: Number.isFinite(parsed.count) ? parsed.count : 0,
           target: Number.isFinite(parsed.target) ? parsed.target : null,
           dismissedReached: !!parsed.dismissedReached,
           muted: !!parsed.muted,
+          daily,
         };
       }
     } catch (e) { /* ignore corrupt state */ }
-    return { name: '', count: 0, target: null, dismissedReached: false, muted: false };
+    return { name: '', count: 0, target: null, dismissedReached: false, muted: false, daily: { date: todayKey(), today: 0, yesterday: 0 } };
   }
 
   function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  // Roll the today/yesterday tally forward if the calendar date has changed
+  // since the state was last saved (e.g. the app was opened the next day).
+  function rolloverDailyIfNeeded() {
+    const key = todayKey();
+    if (state.daily.date === key) return;
+    const prev = new Date(state.daily.date + 'T00:00:00');
+    const cur = new Date(key + 'T00:00:00');
+    const diffDays = Math.round((cur - prev) / 86400000);
+    state.daily = diffDays === 1
+      ? { date: key, today: 0, yesterday: state.daily.today }
+      : { date: key, today: 0, yesterday: 0 };
+    saveState();
   }
 
   function buildBeads() {
@@ -88,6 +117,11 @@
     el.countValue.textContent = state.count;
     el.nameInput.value = state.name;
     el.targetInput.value = state.target ?? '';
+    if (document.activeElement !== el.startInput) {
+      el.startInput.value = state.count;
+    }
+    el.todayStat.textContent = state.daily.today;
+    el.yesterdayStat.textContent = state.daily.yesterday;
 
     const hasTarget = !!state.target && state.target > 0;
     const reached = hasTarget && state.count >= state.target;
@@ -161,10 +195,13 @@
     } catch (e) { /* audio unavailable, vibration/visual signal still fires */ }
   }
 
+  // A real tap: advances the running count AND counts as one prayer done today.
   function increment() {
+    rolloverDailyIfNeeded();
     const hasTarget = !!state.target && state.target > 0;
     const wasReached = hasTarget && state.count >= state.target;
     state.count += 1;
+    state.daily.today += 1;
     const nowReached = hasTarget && state.count >= state.target;
 
     if (nowReached && !wasReached) {
@@ -175,14 +212,14 @@
     render();
   }
 
+  // Directly setting the count (via the Start field) is not itself a prayer,
+  // so it does not touch today's/yesterday's tally — only the running count.
   function setCount(newCount) {
     const hasTarget = !!state.target && state.target > 0;
     const wasReached = hasTarget && state.count >= state.target;
     state.count = Math.max(0, Math.round(newCount));
     const nowReached = hasTarget && state.count >= state.target;
 
-    // Only re-fire the signal if this edit newly crosses the target
-    // (editing the count shouldn't replay the chime every time).
     if (nowReached && !wasReached) {
       state.dismissedReached = false;
       signalTargetReached();
@@ -191,24 +228,6 @@
     }
     saveState();
     render();
-  }
-
-  function openCountEditor() {
-    el.countInput.value = state.count;
-    el.countValue.hidden = true;
-    el.countInput.hidden = false;
-    el.countInput.focus();
-    el.countInput.select();
-  }
-
-  function commitCountEditor() {
-    if (el.countInput.hidden) return;
-    const val = parseInt(el.countInput.value, 10);
-    if (Number.isFinite(val)) {
-      setCount(val);
-    }
-    el.countInput.hidden = true;
-    el.countValue.hidden = false;
   }
 
   function openResetConfirm() {
@@ -229,18 +248,10 @@
 
   el.tapSurface.addEventListener('click', increment);
 
-  el.countValue.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openCountEditor();
-  });
-
-  el.countInput.addEventListener('blur', commitCountEditor);
-  el.countInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      el.countInput.blur();
-    } else if (e.key === 'Escape') {
-      el.countInput.hidden = true;
-      el.countValue.hidden = false;
+  el.startInput.addEventListener('input', () => {
+    const val = parseInt(el.startInput.value, 10);
+    if (Number.isFinite(val)) {
+      setCount(val);
     }
   });
 
@@ -276,6 +287,7 @@
     render();
   });
 
+  rolloverDailyIfNeeded();
   buildBeads();
   render();
 

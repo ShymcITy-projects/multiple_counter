@@ -162,13 +162,6 @@ body {
 }
 
 .count-value {
-  pointer-events: auto;
-  border: none;
-  background: none;
-  padding: 4px 10px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-family: inherit;
   font-size: clamp(48px, 16vw, 84px);
   font-weight: 600;
   line-height: 1;
@@ -176,29 +169,7 @@ body {
   color: var(--teal-deep);
 }
 
-.count-value:active {
-  background: rgba(31, 75, 68, 0.06);
-}
-
-.count-input {
-  pointer-events: auto;
-  width: 60%;
-  max-width: 220px;
-  text-align: center;
-  border: none;
-  border-bottom: 2px solid var(--amber);
-  background: none;
-  outline: none;
-  font-family: inherit;
-  font-size: clamp(40px, 14vw, 72px);
-  font-weight: 600;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  color: var(--teal-deep);
-}
-
 .target-label {
-  pointer-events: none;
   font-size: 14px;
   color: var(--muted);
   min-height: 18px;
@@ -231,18 +202,53 @@ body {
   border-top: 1px solid var(--track);
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -8px 24px rgba(34, 50, 47, 0.06);
-  padding: 14px 20px max(14px, env(safe-area-inset-bottom));
+  padding: 12px 20px max(14px, env(safe-area-inset-bottom));
   margin: 0 -20px;
+}
+
+.stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--track);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--teal-deep);
 }
 
 .controls {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 10px;
 }
 
-.target-row {
+.field-row {
+  display: flex;
+  gap: 10px;
+}
+
+.input-field {
+  flex: 1 1 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -250,28 +256,34 @@ body {
   border: 1px solid var(--track);
   border-radius: 12px;
   padding: 10px 14px;
-  flex: 1 1 auto;
   min-width: 0;
 }
 
-.target-field-label {
+.field-label {
   font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
 }
 
-.target-input {
+.field-input {
   border: none;
   outline: none;
   background: transparent;
   width: 100%;
+  min-width: 0;
   font-size: 16px;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
 
-.target-input::placeholder {
+.field-input::placeholder {
   color: var(--muted);
+}
+
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .mute-button {
@@ -299,7 +311,7 @@ body {
 }
 
 .reset-button {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   border: none;
   background: var(--teal);
   color: var(--bg);

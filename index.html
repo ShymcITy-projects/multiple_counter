@@ -37,8 +37,7 @@
         </svg>
       </button>
       <div class="ring-center">
-        <button id="countValue" class="count-value" type="button" aria-label="Set count"></button>
-        <input id="countInput" class="count-input" type="number" inputmode="numeric" hidden>
+        <span id="countValue" class="count-value"></span>
         <span id="targetLabel" class="target-label"></span>
       </div>
     </div>
@@ -50,30 +49,56 @@
   </main>
 
   <div class="bottom-bar">
-    <footer class="controls">
-      <div class="target-row">
-        <label for="targetInput" class="target-field-label">Target</label>
-        <input
-          id="targetInput"
-          class="target-input"
-          type="number"
-          inputmode="numeric"
-          min="1"
-          placeholder="None"
-        >
+    <div class="stats-row">
+      <div class="stat">
+        <span class="stat-label">Today</span>
+        <span id="todayStat" class="stat-value">0</span>
       </div>
-      <button id="muteBtn" class="mute-button" aria-label="Mute signal" aria-pressed="false">
-        <svg id="muteIconOn" class="mute-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/>
-          <path d="M16.5 12c0-1.77-.77-3.29-2-4.24v8.48c1.23-.95 2-2.47 2-4.24z" fill="currentColor"/>
-        </svg>
-        <svg id="muteIconOff" class="mute-icon" viewBox="0 0 24 24" aria-hidden="true" hidden>
-          <path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/>
-          <line x1="15.5" y1="8.5" x2="21.5" y2="15.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-          <line x1="21.5" y1="8.5" x2="15.5" y2="15.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-        </svg>
-      </button>
-      <button id="resetBtn" class="reset-button">Reset</button>
+      <div class="stat">
+        <span class="stat-label">Yesterday</span>
+        <span id="yesterdayStat" class="stat-value">0</span>
+      </div>
+    </div>
+
+    <footer class="controls">
+      <div class="field-row">
+        <div class="input-field">
+          <label for="startInput" class="field-label">Start at</label>
+          <input
+            id="startInput"
+            class="field-input"
+            type="number"
+            inputmode="numeric"
+            min="0"
+            placeholder="0"
+          >
+        </div>
+        <div class="input-field">
+          <label for="targetInput" class="field-label">Target</label>
+          <input
+            id="targetInput"
+            class="field-input"
+            type="number"
+            inputmode="numeric"
+            min="1"
+            placeholder="None"
+          >
+        </div>
+      </div>
+      <div class="action-row">
+        <button id="muteBtn" class="mute-button" aria-label="Mute signal" aria-pressed="false">
+          <svg id="muteIconOn" class="mute-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/>
+            <path d="M16.5 12c0-1.77-.77-3.29-2-4.24v8.48c1.23-.95 2-2.47 2-4.24z" fill="currentColor"/>
+          </svg>
+          <svg id="muteIconOff" class="mute-icon" viewBox="0 0 24 24" aria-hidden="true" hidden>
+            <path d="M3 9v6h4l5 5V4L7 9H3z" fill="currentColor"/>
+            <line x1="15.5" y1="8.5" x2="21.5" y2="15.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="21.5" y1="8.5" x2="15.5" y2="15.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button id="resetBtn" class="reset-button">Reset</button>
+      </div>
     </footer>
   </div>
 
