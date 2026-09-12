@@ -4,8 +4,10 @@
   const BEAD_COUNT = 11;
 
   const el = {
-    tapBtn: document.getElementById('tapBtn'),
+    tapButtonEl: document.querySelector('.tap-button'),
+    tapSurface: document.getElementById('tapSurface'),
     countValue: document.getElementById('countValue'),
+    countInput: document.getElementById('countInput'),
     targetLabel: document.getElementById('targetLabel'),
     ringProgress: document.getElementById('ringProgress'),
     beadsGroup: document.getElementById('beads'),
@@ -17,15 +19,34 @@
     muteIconOff: document.getElementById('muteIconOff'),
     reachedBanner: document.getElementById('reachedBanner'),
     keepGoingBtn: document.getElementById('keepGoingBtn'),
-    undoToast: document.getElementById('undoToast'),
-    undoText: document.getElementById('undoText'),
-    undoBtn: document.getElementById('undoBtn'),
     flashOverlay: document.getElementById('flashOverlay'),
+    resetConfirm: document.getElementById('resetConfirm'),
+    resetCancelBtn: document.getElementById('resetCancelBtn'),
+    resetConfirmBtn: document.getElementById('resetConfirmBtn'),
   };
 
   let state = loadState();
-  let undoTimer = null;
-  let pendingUndo = null;
+  let audioCtx = null;
+
+  function getAudioContext() {
+    if (audioCtx) return audioCtx;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    audioCtx = new Ctx();
+    return audioCtx;
+  }
+
+  // Unlock/create the audio context on the very first tap anywhere in the app.
+  // iOS Safari only allows audio to start inside a direct user-gesture handler,
+  // so creating it lazily on first interaction (rather than only when a target
+  // is reached) makes sure it's ready and un-suspended by the time it's needed.
+  document.addEventListener('pointerdown', function unlockAudio() {
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    document.removeEventListener('pointerdown', unlockAudio);
+  }, { once: true });
 
   function loadState() {
     try {
@@ -86,7 +107,7 @@
       el.beadsGroup.querySelectorAll('.bead').forEach(b => b.classList.remove('filled'));
     }
 
-    el.tapBtn.classList.toggle('reached', reached);
+    el.tapButtonEl.classList.toggle('reached', reached);
     el.reachedBanner.hidden = !(reached && !state.dismissedReached);
 
     el.muteBtn.setAttribute('aria-pressed', String(state.muted));
@@ -113,25 +134,30 @@
 
   function playTone() {
     try {
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) return;
-      const ctx = new Ctx();
-      const notes = [880, 1108.73];
-      let t = ctx.currentTime;
-      notes.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.0001, t);
-        gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start(t);
-        osc.stop(t + 0.4);
-        t += 0.22;
-      });
-      setTimeout(() => ctx.close(), 900);
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      const start = () => {
+        const notes = [880, 1108.73];
+        let t = ctx.currentTime;
+        notes.forEach((freq) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.0001, t);
+          gain.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.4);
+          t += 0.22;
+        });
+      };
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(start).catch(() => {});
+      } else {
+        start();
+      }
     } catch (e) { /* audio unavailable, vibration/visual signal still fires */ }
   }
 
@@ -149,40 +175,81 @@
     render();
   }
 
-  function reset() {
-    if (state.count === 0) return;
-    pendingUndo = { count: state.count, dismissedReached: state.dismissedReached };
+  function setCount(newCount) {
+    const hasTarget = !!state.target && state.target > 0;
+    const wasReached = hasTarget && state.count >= state.target;
+    state.count = Math.max(0, Math.round(newCount));
+    const nowReached = hasTarget && state.count >= state.target;
+
+    // Only re-fire the signal if this edit newly crosses the target
+    // (editing the count shouldn't replay the chime every time).
+    if (nowReached && !wasReached) {
+      state.dismissedReached = false;
+      signalTargetReached();
+    } else if (!nowReached) {
+      state.dismissedReached = false;
+    }
+    saveState();
+    render();
+  }
+
+  function openCountEditor() {
+    el.countInput.value = state.count;
+    el.countValue.hidden = true;
+    el.countInput.hidden = false;
+    el.countInput.focus();
+    el.countInput.select();
+  }
+
+  function commitCountEditor() {
+    if (el.countInput.hidden) return;
+    const val = parseInt(el.countInput.value, 10);
+    if (Number.isFinite(val)) {
+      setCount(val);
+    }
+    el.countInput.hidden = true;
+    el.countValue.hidden = false;
+  }
+
+  function openResetConfirm() {
+    el.resetConfirm.hidden = false;
+  }
+
+  function closeResetConfirm() {
+    el.resetConfirm.hidden = true;
+  }
+
+  function performReset() {
     state.count = 0;
     state.dismissedReached = false;
     saveState();
     render();
-    showUndo();
+    closeResetConfirm();
   }
 
-  function showUndo() {
-    el.undoToast.hidden = false;
-    clearTimeout(undoTimer);
-    undoTimer = setTimeout(() => {
-      el.undoToast.hidden = true;
-      pendingUndo = null;
-    }, 5000);
-  }
+  el.tapSurface.addEventListener('click', increment);
 
-  el.undoBtn.addEventListener('click', () => {
-    if (pendingUndo) {
-      state.count = pendingUndo.count;
-      state.dismissedReached = pendingUndo.dismissedReached;
-      saveState();
-      render();
-    }
-    el.undoToast.hidden = true;
-    clearTimeout(undoTimer);
-    pendingUndo = null;
+  el.countValue.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openCountEditor();
   });
 
-  el.tapBtn.addEventListener('click', increment);
+  el.countInput.addEventListener('blur', commitCountEditor);
+  el.countInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      el.countInput.blur();
+    } else if (e.key === 'Escape') {
+      el.countInput.hidden = true;
+      el.countValue.hidden = false;
+    }
+  });
 
-  el.resetBtn.addEventListener('click', reset);
+  el.resetBtn.addEventListener('click', openResetConfirm);
+  el.resetCancelBtn.addEventListener('click', closeResetConfirm);
+  el.resetConfirmBtn.addEventListener('click', performReset);
+  el.resetConfirm.addEventListener('click', (e) => {
+    if (e.target === el.resetConfirm) closeResetConfirm();
+  });
 
   el.muteBtn.addEventListener('click', () => {
     state.muted = !state.muted;

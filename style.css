@@ -84,16 +84,23 @@ body {
   position: relative;
   width: min(72vw, 320px);
   height: min(72vw, 320px);
-  border: none;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
   filter: drop-shadow(0 10px 24px rgba(31, 75, 68, 0.16));
 }
 
-.tap-button:active .ring-center {
+.tap-surface {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  display: block;
+}
+
+.tap-surface:active ~ .ring-center {
   transform: scale(0.97);
 }
 
@@ -147,9 +154,17 @@ body {
   justify-content: center;
   gap: 4px;
   transition: transform 0.08s ease;
+  pointer-events: none;
 }
 
 .count-value {
+  pointer-events: auto;
+  border: none;
+  background: none;
+  padding: 4px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
   font-size: clamp(48px, 16vw, 84px);
   font-weight: 600;
   line-height: 1;
@@ -157,7 +172,29 @@ body {
   color: var(--teal-deep);
 }
 
+.count-value:active {
+  background: rgba(31, 75, 68, 0.06);
+}
+
+.count-input {
+  pointer-events: auto;
+  width: 60%;
+  max-width: 220px;
+  text-align: center;
+  border: none;
+  border-bottom: 2px solid var(--amber);
+  background: none;
+  outline: none;
+  font-family: inherit;
+  font-size: clamp(40px, 14vw, 72px);
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--teal-deep);
+}
+
 .target-label {
+  pointer-events: none;
   font-size: 14px;
   color: var(--muted);
   min-height: 18px;
@@ -286,24 +323,72 @@ body {
   font-size: inherit;
 }
 
-/* Undo toast — sits in normal flow above the controls, so it can never overlap them */
+/* Reset confirmation dialog */
 
-.undo-toast {
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(22, 53, 47, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  background: var(--teal-deep);
-  color: var(--bg);
-  padding: 10px 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  margin-bottom: 12px;
+  padding: 24px;
+  z-index: 1000;
+  animation: fade-in 0.15s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.confirm-card {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 22px 20px;
+  width: 100%;
+  max-width: 320px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
   animation: rise 0.2s ease;
 }
 
-.undo-toast .text-btn {
-  color: var(--amber);
+.confirm-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.confirm-sub {
+  margin: 0 0 18px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.confirm-btn {
+  flex: 1 1 0;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirm-btn-cancel {
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--track);
+}
+
+.confirm-btn-danger {
+  background: var(--clay);
+  color: #FFFFFF;
 }
 
 /* Flash overlay — compensates for platforms (iOS Safari) with no Vibration API */
@@ -335,7 +420,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ring-progress, .ring-center, .bead, .reached-banner, .undo-toast, .flash-overlay.flash {
+  .ring-progress, .ring-center, .bead, .reached-banner, .confirm-overlay, .confirm-card, .flash-overlay.flash {
     transition: none;
     animation: none;
   }

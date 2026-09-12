@@ -28,17 +28,20 @@
   </header>
 
   <main class="ring-area">
-    <button id="tapBtn" class="tap-button" aria-label="Count">
-      <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">
-        <circle class="ring-track" cx="100" cy="100" r="90"></circle>
-        <circle id="ringProgress" class="ring-progress" cx="100" cy="100" r="90"></circle>
-        <g id="beads"></g>
-      </svg>
+    <div class="tap-button">
+      <button id="tapSurface" class="tap-surface" aria-label="Count">
+        <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">
+          <circle class="ring-track" cx="100" cy="100" r="90"></circle>
+          <circle id="ringProgress" class="ring-progress" cx="100" cy="100" r="90"></circle>
+          <g id="beads"></g>
+        </svg>
+      </button>
       <div class="ring-center">
-        <span id="countValue" class="count-value">0</span>
+        <button id="countValue" class="count-value" type="button" aria-label="Set count"></button>
+        <input id="countInput" class="count-input" type="number" inputmode="numeric" hidden>
         <span id="targetLabel" class="target-label"></span>
       </div>
-    </button>
+    </div>
 
     <div id="reachedBanner" class="reached-banner" hidden>
       <span>Target reached</span>
@@ -47,11 +50,6 @@
   </main>
 
   <div class="bottom-bar">
-    <div id="undoToast" class="undo-toast" hidden>
-      <span id="undoText">Count reset</span>
-      <button id="undoBtn" class="text-btn">Undo</button>
-    </div>
-
     <footer class="controls">
       <div class="target-row">
         <label for="targetInput" class="target-field-label">Target</label>
@@ -82,6 +80,17 @@
 </div>
 
 <div id="flashOverlay" class="flash-overlay" aria-hidden="true"></div>
+
+<div id="resetConfirm" class="confirm-overlay" hidden>
+  <div class="confirm-card" role="alertdialog" aria-labelledby="resetConfirmTitle">
+    <p id="resetConfirmTitle" class="confirm-title">Reset count to 0?</p>
+    <p class="confirm-sub">The name and target stay the same.</p>
+    <div class="confirm-actions">
+      <button id="resetCancelBtn" class="confirm-btn confirm-btn-cancel">Cancel</button>
+      <button id="resetConfirmBtn" class="confirm-btn confirm-btn-danger">Reset</button>
+    </div>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body>
