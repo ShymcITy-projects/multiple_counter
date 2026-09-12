@@ -20,6 +20,7 @@
     undoToast: document.getElementById('undoToast'),
     undoText: document.getElementById('undoText'),
     undoBtn: document.getElementById('undoBtn'),
+    flashOverlay: document.getElementById('flashOverlay'),
   };
 
   let state = loadState();
@@ -95,11 +96,19 @@
   }
 
   function signalTargetReached() {
+    flashScreen();
     if (state.muted) return;
     if (navigator.vibrate) {
       navigator.vibrate([80, 60, 80, 60, 160]);
     }
     playTone();
+  }
+
+  function flashScreen() {
+    el.flashOverlay.classList.remove('flash');
+    // force reflow so the animation restarts if triggered again quickly
+    void el.flashOverlay.offsetWidth;
+    el.flashOverlay.classList.add('flash');
   }
 
   function playTone() {

@@ -30,7 +30,7 @@ body {
   height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+  padding: max(18px, env(safe-area-inset-top)) 20px 0;
 }
 
 /* Header */
@@ -74,20 +74,23 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4vh;
   min-height: 0;
   position: relative;
+  padding-bottom: 2vh;
 }
 
 .tap-button {
   position: relative;
-  width: min(74vw, 340px);
-  height: min(74vw, 340px);
+  width: min(72vw, 320px);
+  height: min(72vw, 320px);
   border: none;
   background: none;
   padding: 0;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  filter: drop-shadow(0 10px 24px rgba(31, 75, 68, 0.16));
 }
 
 .tap-button:active .ring-center {
@@ -161,7 +164,6 @@ body {
 }
 
 .reached-banner {
-  margin-top: 18px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -180,25 +182,33 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Footer controls */
+/* Bottom bar */
+
+.bottom-bar {
+  flex: 0 0 auto;
+  background: var(--surface);
+  border-top: 1px solid var(--track);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 24px rgba(34, 50, 47, 0.06);
+  padding: 14px 20px max(14px, env(safe-area-inset-bottom));
+  margin: 0 -20px;
+}
 
 .controls {
-  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding-top: 8px;
+  gap: 10px;
 }
 
 .target-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--track);
   border-radius: 12px;
-  padding: 8px 14px;
+  padding: 10px 14px;
   flex: 1 1 auto;
   min-width: 0;
 }
@@ -225,13 +235,13 @@ body {
 
 .mute-button {
   flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--track);
-  background: var(--surface);
+  background: var(--bg);
   color: var(--teal);
   border-radius: 12px;
   cursor: pointer;
@@ -249,18 +259,20 @@ body {
 
 .reset-button {
   flex: 0 0 auto;
-  border: 1px solid var(--teal);
+  border: none;
   background: var(--teal);
   color: var(--bg);
   font-size: 15px;
   font-weight: 600;
-  padding: 12px 20px;
+  padding: 13px 22px;
   border-radius: 12px;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgba(22, 53, 47, 0.25);
 }
 
 .reset-button:active {
   background: var(--teal-deep);
+  box-shadow: none;
 }
 
 .text-btn {
@@ -274,27 +286,45 @@ body {
   font-size: inherit;
 }
 
-/* Undo toast */
+/* Undo toast — sits in normal flow above the controls, so it can never overlap them */
 
 .undo-toast {
-  position: fixed;
-  left: 50%;
-  bottom: max(20px, env(safe-area-inset-bottom));
-  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
   background: var(--teal-deep);
   color: var(--bg);
   padding: 10px 16px;
-  border-radius: 999px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  border-radius: 12px;
   font-size: 14px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  margin-bottom: 12px;
   animation: rise 0.2s ease;
 }
 
 .undo-toast .text-btn {
   color: var(--amber);
+}
+
+/* Flash overlay — compensates for platforms (iOS Safari) with no Vibration API */
+
+.flash-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--clay);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 999;
+}
+
+.flash-overlay.flash {
+  animation: flash-pulse 0.5s ease;
+}
+
+@keyframes flash-pulse {
+  0% { opacity: 0; }
+  15% { opacity: 0.22; }
+  100% { opacity: 0; }
 }
 
 /* Accessibility */
@@ -305,7 +335,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ring-progress, .ring-center, .bead, .reached-banner, .undo-toast {
+  .ring-progress, .ring-center, .bead, .reached-banner, .undo-toast, .flash-overlay.flash {
     transition: none;
     animation: none;
   }
