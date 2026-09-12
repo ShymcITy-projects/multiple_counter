@@ -21,14 +21,18 @@
     keepGoingBtn: document.getElementById('keepGoingBtn'),
     flashOverlay: document.getElementById('flashOverlay'),
     resetConfirm: document.getElementById('resetConfirm'),
+    resetConfirmTitle: document.getElementById('resetConfirmTitle'),
+    resetConfirmSub: document.getElementById('resetConfirmSub'),
     resetCancelBtn: document.getElementById('resetCancelBtn'),
     resetConfirmBtn: document.getElementById('resetConfirmBtn'),
     todayStat: document.getElementById('todayStat'),
     yesterdayStat: document.getElementById('yesterdayStat'),
+    resetTodayBtn: document.getElementById('resetTodayBtn'),
   };
 
   let state = loadState();
   let audioCtx = null;
+  let pendingConfirmAction = null;
 
   function getAudioContext() {
     if (audioCtx) return audioCtx;
@@ -231,16 +235,35 @@
   }
 
   function openResetConfirm() {
+    el.resetConfirmTitle.textContent = 'Reset count to 0?';
+    el.resetConfirmSub.textContent = 'The name and target stay the same.';
+    pendingConfirmAction = 'count';
+    el.resetConfirm.hidden = false;
+  }
+
+  function openResetTodayConfirm() {
+    el.resetConfirmTitle.textContent = "Reset today's count to 0?";
+    el.resetConfirmSub.textContent = "Yesterday's count stays the same.";
+    pendingConfirmAction = 'today';
     el.resetConfirm.hidden = false;
   }
 
   function closeResetConfirm() {
     el.resetConfirm.hidden = true;
+    pendingConfirmAction = null;
   }
 
   function performReset() {
     state.count = 0;
     state.dismissedReached = false;
+    saveState();
+    render();
+    closeResetConfirm();
+  }
+
+  function performResetToday() {
+    rolloverDailyIfNeeded();
+    state.daily.today = 0;
     saveState();
     render();
     closeResetConfirm();
@@ -256,8 +279,15 @@
   });
 
   el.resetBtn.addEventListener('click', openResetConfirm);
+  el.resetTodayBtn.addEventListener('click', openResetTodayConfirm);
   el.resetCancelBtn.addEventListener('click', closeResetConfirm);
-  el.resetConfirmBtn.addEventListener('click', performReset);
+  el.resetConfirmBtn.addEventListener('click', () => {
+    if (pendingConfirmAction === 'today') {
+      performResetToday();
+    } else {
+      performReset();
+    }
+  });
   el.resetConfirm.addEventListener('click', (e) => {
     if (e.target === el.resetConfirm) closeResetConfirm();
   });

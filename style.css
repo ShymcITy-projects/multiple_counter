@@ -236,6 +236,32 @@ body {
   color: var(--teal-deep);
 }
 
+.stat-value-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-reset-btn {
+  border: none;
+  background: none;
+  padding: 3px;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-reset-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.stat-reset-btn:active {
+  color: var(--clay);
+}
+
 .controls {
   display: flex;
   flex-direction: column;
