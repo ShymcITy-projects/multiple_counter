@@ -37,6 +37,37 @@ body {
   padding: max(18px, env(safe-area-inset-top)) 20px 0;
 }
 
+/* Tab bar */
+
+.tab-bar {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.tab-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  border: none;
+  background: var(--track);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 4px;
+  border-radius: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab-btn.active {
+  background: var(--teal);
+  color: var(--bg);
+}
+
 /* Header */
 
 .header {

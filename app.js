@@ -2,8 +2,11 @@
   const STORAGE_KEY = 'counterPwaState';
   const CIRCUMFERENCE = 2 * Math.PI * 90;
   const BEAD_COUNT = 11;
+  const TAB_COUNT = 5;
 
   const el = {
+    tabBar: document.getElementById('tabBar'),
+    tabButtons: Array.from(document.querySelectorAll('.tab-btn')),
     tapButtonEl: document.querySelector('.tap-button'),
     tapSurface: document.getElementById('tapSurface'),
     countValue: document.getElementById('countValue'),
@@ -59,47 +62,91 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
+  function defaultDaily() {
+    return { date: todayKey(), today: 0, yesterday: 0 };
+  }
+
+  function defaultTab() {
+    return { name: '', count: 0, target: null, dismissedReached: false, daily: defaultDaily() };
+  }
+
+  function normalizeDaily(raw) {
+    if (raw && typeof raw === 'object') {
+      return {
+        date: typeof raw.date === 'string' ? raw.date : todayKey(),
+        today: Number.isFinite(raw.today) ? raw.today : 0,
+        yesterday: Number.isFinite(raw.yesterday) ? raw.yesterday : 0,
+      };
+    }
+    return defaultDaily();
+  }
+
+  function normalizeTab(raw) {
+    if (!raw || typeof raw !== 'object') return defaultTab();
+    return {
+      name: typeof raw.name === 'string' ? raw.name : '',
+      count: Number.isFinite(raw.count) ? raw.count : 0,
+      target: Number.isFinite(raw.target) ? raw.target : null,
+      dismissedReached: !!raw.dismissedReached,
+      daily: normalizeDaily(raw.daily),
+    };
+  }
+
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        const daily = parsed.daily && typeof parsed.daily === 'object'
-          ? {
-              date: typeof parsed.daily.date === 'string' ? parsed.daily.date : todayKey(),
-              today: Number.isFinite(parsed.daily.today) ? parsed.daily.today : 0,
-              yesterday: Number.isFinite(parsed.daily.yesterday) ? parsed.daily.yesterday : 0,
-            }
-          : { date: todayKey(), today: 0, yesterday: 0 };
-        return {
-          name: typeof parsed.name === 'string' ? parsed.name : '',
-          count: Number.isFinite(parsed.count) ? parsed.count : 0,
-          target: Number.isFinite(parsed.target) ? parsed.target : null,
-          dismissedReached: !!parsed.dismissedReached,
-          muted: !!parsed.muted,
-          daily,
-        };
+
+        // New multi-tab format.
+        if (Array.isArray(parsed.tabs)) {
+          const tabs = [];
+          for (let i = 0; i < TAB_COUNT; i++) {
+            tabs.push(normalizeTab(parsed.tabs[i]));
+          }
+          const activeTab = Number.isInteger(parsed.activeTab) && parsed.activeTab >= 0 && parsed.activeTab < TAB_COUNT
+            ? parsed.activeTab
+            : 0;
+          return { activeTab, muted: !!parsed.muted, tabs };
+        }
+
+        // Legacy single-counter format — migrate it into Tab 1, keep the rest empty.
+        if (typeof parsed.count !== 'undefined') {
+          const tabs = [normalizeTab(parsed)];
+          for (let i = 1; i < TAB_COUNT; i++) tabs.push(defaultTab());
+          return { activeTab: 0, muted: !!parsed.muted, tabs };
+        }
       }
     } catch (e) { /* ignore corrupt state */ }
-    return { name: '', count: 0, target: null, dismissedReached: false, muted: false, daily: { date: todayKey(), today: 0, yesterday: 0 } };
+
+    const tabs = [];
+    for (let i = 0; i < TAB_COUNT; i++) tabs.push(defaultTab());
+    return { activeTab: 0, muted: false, tabs };
   }
 
   function saveState() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
-  // Roll the today/yesterday tally forward if the calendar date has changed
-  // since the state was last saved (e.g. the app was opened the next day).
-  function rolloverDailyIfNeeded() {
+  function currentTab() {
+    return state.tabs[state.activeTab];
+  }
+
+  // Roll a tab's today/yesterday tally forward if the calendar date has
+  // changed since it was last saved (e.g. the app is opened the next day).
+  function rolloverDailyIfNeeded(tab) {
     const key = todayKey();
-    if (state.daily.date === key) return;
-    const prev = new Date(state.daily.date + 'T00:00:00');
+    if (tab.daily.date === key) return;
+    const prev = new Date(tab.daily.date + 'T00:00:00');
     const cur = new Date(key + 'T00:00:00');
     const diffDays = Math.round((cur - prev) / 86400000);
-    state.daily = diffDays === 1
-      ? { date: key, today: 0, yesterday: state.daily.today }
+    tab.daily = diffDays === 1
+      ? { date: key, today: 0, yesterday: tab.daily.today }
       : { date: key, today: 0, yesterday: 0 };
-    saveState();
+  }
+
+  function rolloverAllTabs() {
+    state.tabs.forEach(rolloverDailyIfNeeded);
   }
 
   function buildBeads() {
@@ -117,23 +164,37 @@
     }
   }
 
-  function render() {
-    el.countValue.textContent = state.count;
-    el.nameInput.value = state.name;
-    el.targetInput.value = state.target ?? '';
-    if (document.activeElement !== el.startInput) {
-      el.startInput.value = state.count;
-    }
-    el.todayStat.textContent = state.daily.today;
-    el.yesterdayStat.textContent = state.daily.yesterday;
+  function renderTabBar() {
+    el.tabButtons.forEach((btn, i) => {
+      const tab = state.tabs[i];
+      const label = tab.name.trim() || String(i + 1);
+      btn.textContent = label;
+      btn.classList.toggle('active', i === state.activeTab);
+      btn.setAttribute('aria-selected', String(i === state.activeTab));
+    });
+  }
 
-    const hasTarget = !!state.target && state.target > 0;
-    const reached = hasTarget && state.count >= state.target;
+  function render() {
+    const tab = currentTab();
+
+    renderTabBar();
+
+    el.countValue.textContent = tab.count;
+    el.nameInput.value = tab.name;
+    el.targetInput.value = tab.target ?? '';
+    if (document.activeElement !== el.startInput) {
+      el.startInput.value = tab.count;
+    }
+    el.todayStat.textContent = tab.daily.today;
+    el.yesterdayStat.textContent = tab.daily.yesterday;
+
+    const hasTarget = !!tab.target && tab.target > 0;
+    const reached = hasTarget && tab.count >= tab.target;
 
     if (hasTarget) {
-      const pct = Math.min(state.count / state.target, 1);
+      const pct = Math.min(tab.count / tab.target, 1);
       el.ringProgress.style.strokeDashoffset = String(CIRCUMFERENCE * (1 - pct));
-      el.targetLabel.textContent = `of ${state.target}`;
+      el.targetLabel.textContent = `of ${tab.target}`;
       const beads = el.beadsGroup.querySelectorAll('.bead');
       beads.forEach((b, i) => {
         const threshold = (i + 1) / BEAD_COUNT;
@@ -146,7 +207,7 @@
     }
 
     el.tapButtonEl.classList.toggle('reached', reached);
-    el.reachedBanner.hidden = !(reached && !state.dismissedReached);
+    el.reachedBanner.hidden = !(reached && !tab.dismissedReached);
 
     el.muteBtn.setAttribute('aria-pressed', String(state.muted));
     el.muteBtn.setAttribute('aria-label', state.muted ? 'Unmute signal' : 'Mute signal');
@@ -201,15 +262,16 @@
 
   // A real tap: advances the running count AND counts as one prayer done today.
   function increment() {
-    rolloverDailyIfNeeded();
-    const hasTarget = !!state.target && state.target > 0;
-    const wasReached = hasTarget && state.count >= state.target;
-    state.count += 1;
-    state.daily.today += 1;
-    const nowReached = hasTarget && state.count >= state.target;
+    const tab = currentTab();
+    rolloverDailyIfNeeded(tab);
+    const hasTarget = !!tab.target && tab.target > 0;
+    const wasReached = hasTarget && tab.count >= tab.target;
+    tab.count += 1;
+    tab.daily.today += 1;
+    const nowReached = hasTarget && tab.count >= tab.target;
 
     if (nowReached && !wasReached) {
-      state.dismissedReached = false;
+      tab.dismissedReached = false;
       signalTargetReached();
     }
     saveState();
@@ -219,17 +281,26 @@
   // Directly setting the count (via the Start field) is not itself a prayer,
   // so it does not touch today's/yesterday's tally — only the running count.
   function setCount(newCount) {
-    const hasTarget = !!state.target && state.target > 0;
-    const wasReached = hasTarget && state.count >= state.target;
-    state.count = Math.max(0, Math.round(newCount));
-    const nowReached = hasTarget && state.count >= state.target;
+    const tab = currentTab();
+    const hasTarget = !!tab.target && tab.target > 0;
+    const wasReached = hasTarget && tab.count >= tab.target;
+    tab.count = Math.max(0, Math.round(newCount));
+    const nowReached = hasTarget && tab.count >= tab.target;
 
     if (nowReached && !wasReached) {
-      state.dismissedReached = false;
+      tab.dismissedReached = false;
       signalTargetReached();
     } else if (!nowReached) {
-      state.dismissedReached = false;
+      tab.dismissedReached = false;
     }
+    saveState();
+    render();
+  }
+
+  function switchTab(index) {
+    if (index === state.activeTab) return;
+    state.activeTab = index;
+    rolloverDailyIfNeeded(currentTab());
     saveState();
     render();
   }
@@ -254,20 +325,28 @@
   }
 
   function performReset() {
-    state.count = 0;
-    state.dismissedReached = false;
+    const tab = currentTab();
+    tab.count = 0;
+    tab.dismissedReached = false;
     saveState();
     render();
     closeResetConfirm();
   }
 
   function performResetToday() {
-    rolloverDailyIfNeeded();
-    state.daily.today = 0;
+    const tab = currentTab();
+    rolloverDailyIfNeeded(tab);
+    tab.daily.today = 0;
     saveState();
     render();
     closeResetConfirm();
   }
+
+  el.tabButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      switchTab(Number(btn.dataset.index));
+    });
+  });
 
   el.tapSurface.addEventListener('click', increment);
 
@@ -299,25 +378,28 @@
   });
 
   el.keepGoingBtn.addEventListener('click', () => {
-    state.dismissedReached = true;
+    currentTab().dismissedReached = true;
     saveState();
     render();
   });
 
   el.nameInput.addEventListener('input', () => {
-    state.name = el.nameInput.value;
+    currentTab().name = el.nameInput.value;
     saveState();
+    renderTabBar();
   });
 
   el.targetInput.addEventListener('input', () => {
     const val = parseInt(el.targetInput.value, 10);
-    state.target = Number.isFinite(val) && val > 0 ? val : null;
-    state.dismissedReached = false;
+    const tab = currentTab();
+    tab.target = Number.isFinite(val) && val > 0 ? val : null;
+    tab.dismissedReached = false;
     saveState();
     render();
   });
 
-  rolloverDailyIfNeeded();
+  rolloverAllTabs();
+  saveState();
   buildBeads();
   render();
 
