@@ -3,9 +3,10 @@
   const CIRCUMFERENCE = 2 * Math.PI * 90;
   const BEAD_COUNT = 11;
   const TAB_COUNT = 5;
+  const STAT_DAYS = 4; // today + 3 previous days shown in the stats row
+  const LOG_RETENTION_DAYS = 14; // how far back a tab's daily log is kept on disk
 
   const el = {
-    tabBar: document.getElementById('tabBar'),
     tabButtons: Array.from(document.querySelectorAll('.tab-btn')),
     tapButtonEl: document.querySelector('.tap-button'),
     tapSurface: document.getElementById('tapSurface'),
@@ -28,9 +29,13 @@
     resetConfirmSub: document.getElementById('resetConfirmSub'),
     resetCancelBtn: document.getElementById('resetCancelBtn'),
     resetConfirmBtn: document.getElementById('resetConfirmBtn'),
-    todayStat: document.getElementById('todayStat'),
-    yesterdayStat: document.getElementById('yesterdayStat'),
     resetTodayBtn: document.getElementById('resetTodayBtn'),
+    dayStats: [
+      document.getElementById('dayStat0'),
+      document.getElementById('dayStat1'),
+      document.getElementById('dayStat2'),
+      document.getElementById('dayStat3'),
+    ],
   };
 
   let state = loadState();
@@ -57,38 +62,50 @@
     document.removeEventListener('pointerdown', unlockAudio);
   }, { once: true });
 
-  function todayKey() {
-    const d = new Date();
+  function dateKey(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  function defaultDaily() {
-    return { date: todayKey(), today: 0, yesterday: 0 };
+  function todayKey() {
+    return dateKey(new Date());
+  }
+
+  // Calendar date, `offset` days before today ("0" = today).
+  function keyForOffset(offset) {
+    const d = new Date();
+    d.setDate(d.getDate() - offset);
+    return dateKey(d);
   }
 
   function defaultTab() {
-    return { name: '', count: 0, target: null, dismissedReached: false, daily: defaultDaily() };
-  }
-
-  function normalizeDaily(raw) {
-    if (raw && typeof raw === 'object') {
-      return {
-        date: typeof raw.date === 'string' ? raw.date : todayKey(),
-        today: Number.isFinite(raw.today) ? raw.today : 0,
-        yesterday: Number.isFinite(raw.yesterday) ? raw.yesterday : 0,
-      };
-    }
-    return defaultDaily();
+    return { name: '', count: 0, target: null, dismissedReached: false, dailyLog: [] };
   }
 
   function normalizeTab(raw) {
     if (!raw || typeof raw !== 'object') return defaultTab();
+    let dailyLog = [];
+    if (Array.isArray(raw.dailyLog)) {
+      dailyLog = raw.dailyLog
+        .filter(e => e && typeof e.date === 'string' && Number.isFinite(e.count))
+        .map(e => ({ date: e.date, count: e.count }));
+    } else if (raw.daily && typeof raw.daily === 'object') {
+      // Migrate the older today/yesterday-only format.
+      const d = raw.daily;
+      if (typeof d.date === 'string') {
+        if (Number.isFinite(d.today)) dailyLog.push({ date: d.date, count: d.today });
+        if (Number.isFinite(d.yesterday)) {
+          const prev = new Date(d.date + 'T00:00:00');
+          prev.setDate(prev.getDate() - 1);
+          dailyLog.push({ date: dateKey(prev), count: d.yesterday });
+        }
+      }
+    }
     return {
       name: typeof raw.name === 'string' ? raw.name : '',
       count: Number.isFinite(raw.count) ? raw.count : 0,
       target: Number.isFinite(raw.target) ? raw.target : null,
       dismissedReached: !!raw.dismissedReached,
-      daily: normalizeDaily(raw.daily),
+      dailyLog,
     };
   }
 
@@ -98,7 +115,7 @@
       if (raw) {
         const parsed = JSON.parse(raw);
 
-        // New multi-tab format.
+        // Multi-tab format (with or without the dailyLog upgrade).
         if (Array.isArray(parsed.tabs)) {
           const tabs = [];
           for (let i = 0; i < TAB_COUNT; i++) {
@@ -132,21 +149,33 @@
     return state.tabs[state.activeTab];
   }
 
-  // Roll a tab's today/yesterday tally forward if the calendar date has
-  // changed since it was last saved (e.g. the app is opened the next day).
-  function rolloverDailyIfNeeded(tab) {
-    const key = todayKey();
-    if (tab.daily.date === key) return;
-    const prev = new Date(tab.daily.date + 'T00:00:00');
-    const cur = new Date(key + 'T00:00:00');
-    const diffDays = Math.round((cur - prev) / 86400000);
-    tab.daily = diffDays === 1
-      ? { date: key, today: 0, yesterday: tab.daily.today }
-      : { date: key, today: 0, yesterday: 0 };
+  function findLogEntry(tab, key) {
+    return tab.dailyLog.find(e => e.date === key);
   }
 
-  function rolloverAllTabs() {
-    state.tabs.forEach(rolloverDailyIfNeeded);
+  function getOrCreateTodayEntry(tab) {
+    const key = todayKey();
+    let entry = findLogEntry(tab, key);
+    if (!entry) {
+      entry = { date: key, count: 0 };
+      tab.dailyLog.unshift(entry);
+      pruneLog(tab);
+    }
+    return entry;
+  }
+
+  function pruneLog(tab) {
+    const cutoffKey = keyForOffset(LOG_RETENTION_DAYS);
+    tab.dailyLog = tab.dailyLog.filter(e => e.date >= cutoffKey);
+  }
+
+  function countsForLastDays(tab) {
+    const result = [];
+    for (let i = 0; i < STAT_DAYS; i++) {
+      const entry = findLogEntry(tab, keyForOffset(i));
+      result.push(entry ? entry.count : 0);
+    }
+    return result;
   }
 
   function buildBeads() {
@@ -185,8 +214,9 @@
     if (document.activeElement !== el.startInput) {
       el.startInput.value = tab.count;
     }
-    el.todayStat.textContent = tab.daily.today;
-    el.yesterdayStat.textContent = tab.daily.yesterday;
+
+    const counts = countsForLastDays(tab);
+    el.dayStats.forEach((node, i) => { node.textContent = counts[i]; });
 
     const hasTarget = !!tab.target && tab.target > 0;
     const reached = hasTarget && tab.count >= tab.target;
@@ -263,11 +293,10 @@
   // A real tap: advances the running count AND counts as one prayer done today.
   function increment() {
     const tab = currentTab();
-    rolloverDailyIfNeeded(tab);
     const hasTarget = !!tab.target && tab.target > 0;
     const wasReached = hasTarget && tab.count >= tab.target;
     tab.count += 1;
-    tab.daily.today += 1;
+    getOrCreateTodayEntry(tab).count += 1;
     const nowReached = hasTarget && tab.count >= tab.target;
 
     if (nowReached && !wasReached) {
@@ -279,7 +308,7 @@
   }
 
   // Directly setting the count (via the Start field) is not itself a prayer,
-  // so it does not touch today's/yesterday's tally — only the running count.
+  // so it does not touch the daily log — only the running count.
   function setCount(newCount) {
     const tab = currentTab();
     const hasTarget = !!tab.target && tab.target > 0;
@@ -300,7 +329,6 @@
   function switchTab(index) {
     if (index === state.activeTab) return;
     state.activeTab = index;
-    rolloverDailyIfNeeded(currentTab());
     saveState();
     render();
   }
@@ -314,7 +342,7 @@
 
   function openResetTodayConfirm() {
     el.resetConfirmTitle.textContent = "Reset today's count to 0?";
-    el.resetConfirmSub.textContent = "Yesterday's count stays the same.";
+    el.resetConfirmSub.textContent = 'The previous days stay the same.';
     pendingConfirmAction = 'today';
     el.resetConfirm.hidden = false;
   }
@@ -335,8 +363,7 @@
 
   function performResetToday() {
     const tab = currentTab();
-    rolloverDailyIfNeeded(tab);
-    tab.daily.today = 0;
+    getOrCreateTodayEntry(tab).count = 0;
     saveState();
     render();
     closeResetConfirm();
@@ -398,7 +425,7 @@
     render();
   });
 
-  rolloverAllTabs();
+  state.tabs.forEach(pruneLog);
   saveState();
   buildBeads();
   render();

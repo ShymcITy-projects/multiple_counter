@@ -238,9 +238,9 @@ body {
 }
 
 .stats-row {
-  display: flex;
-  justify-content: center;
-  gap: 28px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
   padding-bottom: 10px;
   margin-bottom: 10px;
   border-bottom: 1px solid var(--track);
@@ -251,17 +251,22 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 1px;
+  min-width: 0;
 }
 
 .stat-label {
-  font-size: 11px;
+  font-size: 9.5px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .stat-value {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--teal-deep);
@@ -485,6 +490,58 @@ body {
   100% { opacity: 0; }
 }
 
+/* Rotate-to-portrait prompt.
+   iOS gives web apps no real way to lock orientation, so this covers the
+   screen with a clear instruction whenever the device is in landscape. */
+
+.rotate-overlay {
+  display: none;
+}
+
+@media (orientation: landscape) {
+  .rotate-overlay {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    background: var(--teal-deep);
+    padding: 24px;
+  }
+
+  .app, .flash-overlay, .confirm-overlay {
+    display: none;
+  }
+}
+
+.rotate-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 280px;
+  text-align: center;
+  color: var(--bg);
+}
+
+.rotate-icon {
+  width: 48px;
+  height: 48px;
+  animation: rotate-hint 1.8s ease-in-out infinite;
+}
+
+@keyframes rotate-hint {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-90deg); }
+}
+
+.rotate-card p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
 /* Accessibility */
 
 :focus-visible {
@@ -493,7 +550,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ring-progress, .ring-center, .bead, .reached-banner, .confirm-overlay, .confirm-card, .flash-overlay.flash {
+  .ring-progress, .ring-center, .bead, .reached-banner, .confirm-overlay, .confirm-card, .flash-overlay.flash, .rotate-icon {
     transition: none;
     animation: none;
   }

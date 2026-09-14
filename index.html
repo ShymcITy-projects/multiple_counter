@@ -61,7 +61,7 @@
       <div class="stat">
         <span class="stat-label">Today</span>
         <div class="stat-value-row">
-          <span id="todayStat" class="stat-value">0</span>
+          <span id="dayStat0" class="stat-value">0</span>
           <button id="resetTodayBtn" class="stat-reset-btn" aria-label="Reset today's count">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.08A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/>
@@ -71,7 +71,15 @@
       </div>
       <div class="stat">
         <span class="stat-label">Yesterday</span>
-        <span id="yesterdayStat" class="stat-value">0</span>
+        <span id="dayStat1" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">2 days ago</span>
+        <span id="dayStat2" class="stat-value">0</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">3 days ago</span>
+        <span id="dayStat3" class="stat-value">0</span>
       </div>
     </div>
 
@@ -133,5 +141,17 @@
 </div>
 
 <script src="app.js"></script>
+
+<div id="rotateOverlay" class="rotate-overlay" aria-hidden="true">
+  <div class="rotate-card">
+    <svg viewBox="0 0 24 24" class="rotate-icon" aria-hidden="true">
+      <rect x="3" y="7" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M20 9V6a1 1 0 0 0-1-1h-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M19 4l1.6 1.6L19 7.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <p>This app works best in portrait — please rotate your device back.</p>
+  </div>
+</div>
+
 </body>
 </html>
